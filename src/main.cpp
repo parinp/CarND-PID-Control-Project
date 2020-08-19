@@ -4,10 +4,12 @@
 #include <string>
 #include "json.hpp"
 #include "PID.h"
+#include "twiddle.h"
 
 // for convenience
 using nlohmann::json;
 using std::string;
+using std::vector;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -33,12 +35,46 @@ string hasData(string s) {
 int main() {
   uWS::Hub h;
 
-  PID pid;
-  /**
-   * TODO: Initialize the pid variable.
-   */
+  PID steer_pid;
+  PID speed_pid;
 
-  h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
+  bool enableTwiddle = false;
+  /**
+   * TODO: Initialize the steer_pid variable.
+   */
+  
+  //Intial start
+
+  vector<double> init_coef = {0.14,0.0,6.8};
+  vector<double> del_init_coef = {0.1,0.1,0.2};
+
+  steer_pid.Init(init_coef[0],init_coef[1],init_coef[2]);
+  speed_pid.Init(0.1,0.0,0.5);
+
+
+  float tolerance = 0.2;
+  
+  Twiddle twiddle = Twiddle(tolerance,init_coef,del_init_coef);
+
+  //only P
+  //steer_pid.Init(1.0,0.0,0.0);
+
+  //Only I
+  //steer_pid.Init(0.0,1.0,0.0);
+
+  //Only D
+  //steer_pid.Init(0.0,0.0,1.0);
+
+  double MAX_CTE = 2.6;
+  double cte_error = 0;
+
+  static unsigned min_start = 100u;
+  static unsigned max_iter = 4000u;
+  double min_speed = 3.0;
+  double max_angle = 25.0;
+  double max_throttle = 0.3;
+
+  h.onMessage([&](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -56,7 +92,7 @@ int main() {
           double cte = std::stod(j[1]["cte"].get<string>());
           double speed = std::stod(j[1]["speed"].get<string>());
           double angle = std::stod(j[1]["steering_angle"].get<string>());
-          double steer_value;
+          double steer_value,throttle_value;
           /**
            * TODO: Calculate steering value here, remember the steering value is
            *   [-1, 1].
@@ -64,16 +100,59 @@ int main() {
            *   Maybe use another PID controller to control the speed!
            */
           
+          static unsigned error = 0u;
+
+          if(enableTwiddle == true)
+          {
+            if(error > min_start && (abs(cte) > MAX_CTE  || speed < min_speed || error > max_iter))
+            {
+
+              vector<double> params = steer_pid.getCoefficients();
+            
+              bool isTwiddle = twiddle.Optimize(cte_error,params);
+
+              const string msg = "42[\"reset\",{}]";
+              ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+
+              vector<double> new_params = twiddle.getCoefficients();
+              steer_pid.Init(new_params[0],new_params[1],new_params[2]);
+              std::cout << "Kp: " << new_params[0] << " , Ki: " << new_params[1] << " , Kd: " << new_params[2] << std::endl;
+            
+              error = 0u;
+            }
+          }
+
+          cte_error += pow(cte,2);
+          error++;
+
+          steer_pid.UpdateError(cte);
+          steer_value = steer_pid.TotalError();
+          steer_value = steer_value > 1.0 ? 1.0 : steer_value < -1.0 ? -1.0 : steer_value;
+
+          double target_speed = 25.0 + 5*(1-fabs(angle/max_angle));
+          speed_pid.UpdateError(speed - target_speed);
+          
+          throttle_value = speed_pid.TotalError();
+          throttle_value = throttle_value > max_throttle ? max_throttle : throttle_value  < -max_throttle ? -max_throttle : throttle_value;
+
+          /*
+          
           // DEBUG
           std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
                     << std::endl;
-
+          */
+          
           json msgJson;
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.3;
+          msgJson["throttle"] = throttle_value;
+          
+          
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          //std::cout << msg << std::endl;
+          
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+
+          
         }  // end "telemetry" if
       } else {
         // Manual driving
