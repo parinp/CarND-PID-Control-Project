@@ -1,6 +1,10 @@
 #ifndef PID_H
 #define PID_H
 
+#include <vector>
+
+using std::vector;
+
 class PID {
  public:
   /**
@@ -31,6 +35,8 @@ class PID {
    */
   double TotalError();
 
+  vector<double> getCoefficients();
+
  private:
   /**
    * PID Errors
@@ -38,6 +44,8 @@ class PID {
   double p_error;
   double i_error;
   double d_error;
+
+  double prev_cte;
 
   /**
    * PID Coefficients
