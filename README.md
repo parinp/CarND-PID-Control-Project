@@ -23,13 +23,13 @@ This component reduces or increases the effect of the adjustment to the error ba
 
 ## Parameter Tuning
 
-The final parameters were chosen from a combination of both **Manual** and **Twiddle** tuning.  The PID was first tuned manually, I chose to do this first as I am more familiar with manual tuning and also after which it will make Twiddle tuning converge a lot easier.  I ended up with values of `Kp = 0.12`, `Ki = 0.0.0005`, `Kd = 3.50`. 
+The final parameters were chosen from a combination of both **Manual** and **Twiddle** tuning.  The PID was first tuned manually, I chose to do this first as I am more familiar with manual tuning and also after which it will make Twiddle tuning converge a lot easier.  I ended up with values of `Kp = 0.12`, `Ki = 0.0.0005`, `Kd = 3.60`. 
 
 Then I activated the twiddle algorithm to help converge around those values.  The final parameters are:
 
 Coefficients | Kp | Ki | Kd |
 :-----------:|:--:|:--:|:--:|
-Value|1.10|0.005|3.50|
+Value|1.10|0.005|3.60|
 
 ## Reflection
 
