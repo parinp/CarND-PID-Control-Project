@@ -45,11 +45,11 @@ int main() {
   
   //Intial start
 
-  vector<double> init_coef = {0.14,0.0,6.8};
-  vector<double> del_init_coef = {0.1,0.1,0.2};
+  vector<double> init_coef = {0.12,0.0005,3.5};
+  vector<double> del_init_coef = {0.01,0.0001,0.1};
 
   steer_pid.Init(init_coef[0],init_coef[1],init_coef[2]);
-  speed_pid.Init(0.1,0.0,0.5);
+  //speed_pid.Init(0.1,0.0,0.5);
 
 
   float tolerance = 0.2;
@@ -66,14 +66,15 @@ int main() {
   //steer_pid.Init(0.0,0.0,1.0);
 
   double MAX_CTE = 2.6;
-  double cte_error = 0;
+  double cte_error = 0.0;
 
-  static unsigned min_start = 100u;
-  static unsigned max_iter = 4000u;
+  double min_start = 120;
+  double max_iter = 40000;
   double min_speed = 3.0;
   double max_angle = 25.0;
   double max_throttle = 0.3;
-
+  double count = 0.0;
+  
   h.onMessage([&](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -100,40 +101,41 @@ int main() {
            *   Maybe use another PID controller to control the speed!
            */
           
-          static unsigned error = 0u;
+          
 
           if(enableTwiddle == true)
           {
-            if(error > min_start && (abs(cte) > MAX_CTE  || speed < min_speed || error > max_iter))
+            if(count > min_start && (abs(cte) > MAX_CTE  || speed < min_speed || count > max_iter))
             {
 
               vector<double> params = steer_pid.getCoefficients();
-            
-              bool isTwiddle = twiddle.Optimize(cte_error,params);
 
-              const string msg = "42[\"reset\",{}]";
-              ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+              bool isTwiddle = twiddle.Optimize(count, cte_error, params);
 
               vector<double> new_params = twiddle.getCoefficients();
               steer_pid.Init(new_params[0],new_params[1],new_params[2]);
               std::cout << "Kp: " << new_params[0] << " , Ki: " << new_params[1] << " , Kd: " << new_params[2] << std::endl;
-            
-              error = 0u;
+
+              const string msg = "42[\"reset\",{}]";
+              ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+              count = 0;
             }
           }
 
-          cte_error += pow(cte,2);
-          error++;
+          cte_error += fabs(cte);
+          count++;
 
           steer_pid.UpdateError(cte);
           steer_value = steer_pid.TotalError();
           steer_value = steer_value > 1.0 ? 1.0 : steer_value < -1.0 ? -1.0 : steer_value;
 
+          /*
           double target_speed = 25.0 + 5*(1-fabs(angle/max_angle));
           speed_pid.UpdateError(speed - target_speed);
           
           throttle_value = speed_pid.TotalError();
           throttle_value = throttle_value > max_throttle ? max_throttle : throttle_value  < -max_throttle ? -max_throttle : throttle_value;
+          */
 
           /*
           
@@ -141,6 +143,8 @@ int main() {
           std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
                     << std::endl;
           */
+
+          throttle_value = 0.3;
           
           json msgJson;
           msgJson["steering_angle"] = steer_value;
