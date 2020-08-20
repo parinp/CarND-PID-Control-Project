@@ -45,7 +45,7 @@ int main() {
   
   //Intial start
 
-  vector<double> init_coef = {0.12,0.0005,3.5};
+  vector<double> init_coef = {0.12,0.0005,3.6};
   vector<double> del_init_coef = {0.01,0.0001,0.1};
 
   steer_pid.Init(init_coef[0],init_coef[1],init_coef[2]);
