@@ -30,7 +30,7 @@ class Twiddle{
          
         virtual ~Twiddle();
 
-        bool Optimize(double &error, const vector<double> &params);
+        bool Optimize(double &count, double &cte_error,const vector<double> &params);
 
         vector<double> getCoefficients();
 
@@ -44,7 +44,8 @@ class Twiddle{
         int index, state_coef;
         float tolerance;
         float percent_change = 25;
-        double best_error = std::numeric_limits<double>::max();
+        double best_count = std::numeric_limits<double>::max();
+        double best_cte_error = std::numeric_limits<double>::max();
          
 };
 

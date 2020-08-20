@@ -5,6 +5,7 @@
 #include <numeric>
 #include <limits>
 #include <iostream>
+#include <math.h>
 
 Twiddle::Twiddle(){
     this->tolerance = 0.1;
@@ -29,11 +30,28 @@ vector<double> Twiddle::getCoefficients(){
     return(coef);
 }
 
-bool Twiddle::Optimize(double &error, const vector<double> &params){
+bool Twiddle::Optimize(double &count, double &cte_error, const vector<double> &params){
 
-    //double error = std::numeric_limits<unsigned>::max()-err;
-
-    //error = std::abs(error);
+    double error = 0.0;
+    double best_error = 0.0;
+    
+    if(count<best_count)
+    {
+        if(fabs(best_count - count) < 20)
+        {
+            error = cte_error;
+            error = best_cte_error;
+        }else
+        {
+            error = std::numeric_limits<double>::max() - count;
+            best_error = best_count;
+        }
+    }else
+    {
+        error = std::numeric_limits<double>::max() - count;
+        best_error = best_count;
+    }
+    
 
     switch(state_coef)
     {
@@ -51,7 +69,8 @@ bool Twiddle::Optimize(double &error, const vector<double> &params){
                 d_coef[index] *= 1+(percent_change/100);
 
                 index = (index + 1) % coef.size();
-                state_coef = INIT;  
+                coef[index] += d_coef[index];
+                state_coef = INCREASE;  
 
                 return false;
             }else
@@ -70,7 +89,8 @@ bool Twiddle::Optimize(double &error, const vector<double> &params){
 
 
                 index = (index + 1) % coef.size();
-                state_coef = INIT;  
+                coef[index] += d_coef[index];
+                state_coef = INCREASE;  
 
                 return false;
 
